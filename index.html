@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据列表管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f4f4f4;
+        }
+
+        #dataList {
+            width: 90%;
+            max-width: 800px;
+            margin: 10px auto;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .list-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .input-container {
+            width: 90%;
+            max-width: 800px;
+            margin: 10px auto;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #itemInput {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        #suggestions {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+            z-index: 100;
+            max-height: 200px;
+            overflow-y: auto;
+            width: max-content;
+            min-width: 200px;
+            max-width: 100%;
+        }
+
+        .suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .action-btn {
+            margin-left: 5px;
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 12px;
+            color: white;
+        }
+
+        .edit-btn {
+            background-color: #28a745;
+        }
+
+        .edit-btn:hover {
+            background-color: #218838;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+        }
+
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        #addButton, #importButton, #copyButton, #deleteAllButton {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            flex: 1 1 calc(50% - 4px);
+            min-width: calc(50% - 4px);
+            margin: 0;
+        }
+
+        #editModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 400px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #editModal input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        #editModal button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        #editModal button:hover {
+            background-color: #0056b3;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        #importModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #importModal textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            resize: vertical;
+        }
+
+        #importModal button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        #addButton {
+            background-color: #007bff;
+        }
+
+        #importButton {
+            background-color: #28a745;
+        }
+
+        #copyButton {
+            background-color: #17a2b8;
+        }
+
+        #deleteAllButton {
+            background-color: #dc3545;
+        }
+
+        #importModal button:hover {
+            background-color: #0056b3;
+        }
+
+        #guideModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #guideModal .guide-content {
+            white-space: pre-line;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        #guideModal button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        #guideModal button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="overlay"></div>
+    <div id="editModal">
+        <input type="text" id="editInput" placeholder="输入修改后的内容">
+        <button id="saveEditButton">保存修改</button>
+    </div>
+    <div id="importModal">
+        <textarea id="importInput" placeholder="请输入要导入的数据，每行一条"></textarea>
+        <button id="saveImportButton">确认导入</button>
+    </div>
+    <div id="dataList"></div>
+    <div class="input-container">
+        <input type="text" id="itemInput" placeholder="输入内容并选择建议项...">
+        <div id="suggestions"></div>
+        <div class="button-group">
+            <button id="addButton">导出TXT</button>
+            <button id="copyButton">复制数据表</button>
+            <button id="importButton">批量导入</button>
+            <button id="deleteAllButton">删除全部</button>
+        </div>
+    </div>
+    <div id="guideModal">
+        <div class="guide-content">【快速操作指南】
+▋数据录入规范
+1️⃣ 新增数据行
+
+输入内容后按「回车」立即生成新记录
+支持智能联想：输入关键词（如"办公"）自动匹配历史记录
+▋资产盘点流程
+📍 第一步：创建存放档案
+格式要求：@地点 负责人 部门
+范例：@育英楼106 汪正正 教务处
+▶️ 提示：此信息将作为直到下一个存放档案出现前的资产归属标识
+
+📍 第二步：录入资产详情
+必填字段（空格分隔）：
+名称 品牌 规格型号
+选填字段（按需填写）：
+[出厂日期/新旧程度] [数量] [使用状态]
+范例：办公椅 黑色皮铁混质 有扶手 3
+▶️ 提示：资产详情请按照顺序填写
+
+▋编辑与维护
+✅ 即时修正：点击数据行「修改」按钮进行内容修改
+✅ 快速删除：点击数据行「删除」按钮可删除行
+✅ 批量调整：点击「删除全部」按钮可以将数据行全部删除
+
+▋数据管理
+🔗 导入历史数据：粘贴换行分隔的文本文件
+🔗 复制当前清单：点击「复制数据表」按钮
+🔗 导出存档：生成.txt文件备份（建议每次盘点后保存）
+
+💡 重要提示：连续盘点时请养成定时导出习惯，避免数据丢失风险</div>
+        <button id="closeGuideButton">我知道了</button>
+    </div>
+
+    <script>
+        let items = [];
+        let currentEditIndex = null;
+        let db;
+        
+        const dataList = document.getElementById('dataList');
+        const itemInput = document.getElementById('itemInput');
+        const suggestions = document.getElementById('suggestions');
+        const addButton = document.getElementById('addButton');
+        const copyButton = document.getElementById('copyButton');
+        const editModal = document.getElementById('editModal');
+        const editInput = document.getElementById('editInput');
+        const saveEditButton = document.getElementById('saveEditButton');
+        const overlay = document.getElementById('overlay');
+        const importModal = document.getElementById('importModal');
+        const importInput = document.getElementById('importInput');
+        const importButton = document.getElementById('importButton');
+        const saveImportButton = document.getElementById('saveImportButton');
+        const deleteAllButton = document.getElementById('deleteAllButton');
+        const guideModal = document.getElementById('guideModal');
+        const closeGuideButton = document.getElementById('closeGuideButton');
+
+        // 添加IndexedDB初始化代码
+        const initDB = () => {
+            const request = indexedDB.open('ItemsDB', 1);
+            
+            request.onerror = (event) => {
+                console.error('数据库错误：', event.target.error);
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('items')) {
+                    db.createObjectStore('items', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+
+            request.onsuccess = (event) => {
+                db = event.target.result;
+                loadItems(); // 加载存储的数据
+            };
+        };
+
+        // 从IndexedDB加载数据
+        const loadItems = () => {
+            const transaction = db.transaction(['items'], 'readonly');
+            const store = transaction.objectStore('items');
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                items = request.result.map(item => item.value);
+                refreshList();
+                
+                // 检查是否需要显示指南
+                if (items.length === 0) {
+                    guideModal.style.display = 'block';
+                    overlay.style.display = 'block';
+                }
+            };
+        };
+
+        // 保存数据到IndexedDB
+        const saveItem = (value) => {
+            const transaction = db.transaction(['items'], 'readwrite');
+            const store = transaction.objectStore('items');
+            store.add({ value });
+            
+            transaction.oncomplete = () => {
+                loadItems();
+            };
+        };
+
+        // 更新IndexedDB中的数据
+        const updateItem = (index, newValue) => {
+            const transaction = db.transaction(['items'], 'readwrite');
+            const store = transaction.objectStore('items');
+            
+            // 先获取要更新的记录
+            const cursorRequest = store.openCursor();
+            let count = 0;
+            
+            cursorRequest.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    if (count === index) {
+                        cursor.update({ id: cursor.key, value: newValue });
+                    }
+                    count++;
+                    cursor.continue();
+                }
+            };
+
+            transaction.oncomplete = () => {
+                loadItems();
+            };
+        };
+
+        // 从IndexedDB删除数据
+        const deleteItem = (index) => {
+            const transaction = db.transaction(['items'], 'readwrite');
+            const store = transaction.objectStore('items');
+            
+            const cursorRequest = store.openCursor();
+            let count = 0;
+            
+            cursorRequest.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    if (count === index) {
+                        cursor.delete();
+                    }
+                    count++;
+                    cursor.continue();
+                }
+            };
+
+            transaction.oncomplete = () => {
+                loadItems();
+            };
+        };
+
+        // 修改refreshList函数中的删除按钮事件监听
+        function refreshList() {
+            dataList.innerHTML = items.map((item, index) => 
+                `<div class="list-item">
+                    ${item}
+                    <button class="action-btn edit-btn" data-index="${index}">编辑</button>
+                    <button class="action-btn delete-btn" data-index="${index}">删除</button>
+                </div>`
+            ).join('');
+
+            // 添加编辑按钮事件监听
+            const editButtons = document.querySelectorAll('.edit-btn');
+            editButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    currentEditIndex = parseInt(e.target.getAttribute('data-index'));
+                    editInput.value = items[currentEditIndex];
+                    editModal.style.display = 'block';
+                    overlay.style.display = 'block';
+                });
+            });
+
+            // 修改删除按钮事件监听，添加确认弹窗
+            const deleteButtons = document.querySelectorAll('.delete-btn');
+            deleteButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    if (confirm('确定要删除这条记录吗？')) {
+                        deleteItem(index);
+                    }
+                });
+            });
+        }
+
+        // 修改显示智能提示函数
+        function showSuggestions(text) {
+            text = text.trim();
+            if (!text) {
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            const uniqueItems = [...new Set(items)];
+            const filtered = uniqueItems.filter(item => 
+                item.toLowerCase().includes(text.toLowerCase())
+            );
+            
+            if (filtered.length === 0) {
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            suggestions.innerHTML = filtered.map(item => 
+                `<div class="suggestion-item">${item}</div>`
+            ).join('');
+            
+            suggestions.style.display = 'block';
+
+            // 修改建议项点击事件监听
+            const suggestionItems = document.querySelectorAll('.suggestion-item');
+            suggestionItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    itemInput.value = item.textContent;
+                    suggestions.style.display = 'none';
+                    itemInput.focus(); // 保持输入框焦点
+                });
+            });
+        }
+
+        // 添加点击其他地方关闭智能提示
+        document.addEventListener('click', (e) => {
+            if (!suggestions.contains(e.target) && e.target !== itemInput) {
+                suggestions.style.display = 'none';
+            }
+        });
+
+        // 输入事件处理
+        itemInput.addEventListener('input', (e) => {
+            showSuggestions(e.target.value);
+        });
+
+        // 添加滚动到底部的函数
+        function scrollToBottom() {
+            dataList.scrollTop = dataList.scrollHeight;
+        }
+
+        // 添加提示函数
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(40, 167, 69, 0.9);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                z-index: 1000;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // 2秒后自动消失
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s';
+                setTimeout(() => document.body.removeChild(toast), 500);
+            }, 2000);
+        }
+
+        // 修改添加项目的函数
+        function addNewItem() {
+            const newItem = itemInput.value.trim();
+            if (newItem) {
+                saveItem(newItem);
+                itemInput.value = '';
+                suggestions.style.display = 'none';
+                itemInput.focus(); // 保持输入框焦点
+                
+                // 等待数据加载完成后滚动到底部并显示提示
+                setTimeout(() => {
+                    scrollToBottom();
+                    showToast('添加成功！');
+                }, 100);
+            }
+        }
+
+        // 添加导出TXT文件的函数
+        function exportToTxt() {
+            if (items.length === 0) {
+                showToast('没有数据可导出！');
+                return;
+            }
+
+            const content = items.join('\n');
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = '数据表.txt';
+            document.body.appendChild(link);
+            link.click();
+            
+            // 清理
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showToast('导出成功！');
+        }
+
+        // 修改添加按钮为导出TXT功能
+        addButton.addEventListener('click', exportToTxt);
+
+        // 复制数据表
+        copyButton.addEventListener('click', () => {
+            const csvContent = items.join("\n");
+            navigator.clipboard.writeText(csvContent).then(() => {
+                alert('数据表已复制到剪贴板');
+            });
+        });
+
+        // 修改保存编辑的事件处理
+        saveEditButton.addEventListener('click', () => {
+            const newItem = editInput.value.trim();
+            if (newItem) {
+                updateItem(currentEditIndex, newItem);
+                editInput.value = '';
+                editModal.style.display = 'none';
+                overlay.style.display = 'none';
+            }
+        });
+
+        // 关闭编辑模态框
+        overlay.addEventListener('click', () => {
+            editModal.style.display = 'none';
+            overlay.style.display = 'none';
+        });
+
+        // 批量保存数据到IndexedDB
+        const bulkSaveItems = (values) => {
+            const transaction = db.transaction(['items'], 'readwrite');
+            const store = transaction.objectStore('items');
+            
+            values.forEach(value => {
+                if (value.trim()) {
+                    store.add({ value: value.trim() });
+                }
+            });
+            
+            transaction.oncomplete = () => {
+                loadItems();
+            };
+        };
+
+        // 导入按钮点击事件
+        importButton.addEventListener('click', () => {
+            importModal.style.display = 'block';
+            overlay.style.display = 'block';
+            importInput.value = '';
+        });
+
+        // 确认导入按钮点击事件
+        saveImportButton.addEventListener('click', () => {
+            const importText = importInput.value;
+            const importItems = importText.split('\n');
+            
+            bulkSaveItems(importItems);
+            
+            importModal.style.display = 'none';
+            overlay.style.display = 'none';
+            importInput.value = '';
+
+            // 等待数据加载完成后滚动到底部并显示提示
+            setTimeout(() => {
+                scrollToBottom();
+                showToast('批量导入成功！');
+            }, 100);
+        });
+
+        // 修改 overlay 点击事件，添加关闭导入模态框
+        overlay.addEventListener('click', () => {
+            editModal.style.display = 'none';
+            importModal.style.display = 'none';
+            guideModal.style.display = 'none';
+            overlay.style.display = 'none';
+        });
+
+        // 添加删除全部数据的函数
+        const deleteAllItems = () => {
+            const transaction = db.transaction(['items'], 'readwrite');
+            const store = transaction.objectStore('items');
+            const request = store.clear();
+            
+            request.onsuccess = () => {
+                loadItems();
+            };
+        };
+
+        // 添加删除全部按钮的点击事件
+        deleteAllButton.addEventListener('click', () => {
+            if (items.length === 0) {
+                alert('列表已经是空的了');
+                return;
+            }
+            
+            if (confirm('确定要删除所有数据吗？此操作不可恢复！')) {
+                deleteAllItems();
+            }
+        });
+
+        // 添加关闭指南按钮事件
+        closeGuideButton.addEventListener('click', () => {
+            guideModal.style.display = 'none';
+            overlay.style.display = 'none';
+        });
+
+        // 初始化数据库并加载数据
+        initDB();
+
+        // 初始化显示
+        refreshList();
+
+        // 修改键盘事件支持
+        itemInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const newItem = itemInput.value.trim();
+                if (newItem) {
+                    addNewItem();
+                }
+            }
+        });
+
+        editInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                saveEditButton.click();
+            }
+        });
+    </script>
+</body>
+</html>
