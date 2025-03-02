@@ -294,8 +294,8 @@
         <button id="saveEditButton">保存修改</button>
     </div>
     <div id="importModal">
-        <textarea id="importInput" placeholder="请输入要导入的数据，每行一条"></textarea>
-        <button id="saveImportButton">确认导入</button>
+        <textarea id="importInput" placeholder="编辑数据内容，每行一条"></textarea>
+        <button id="saveImportButton">保存修改</button>
     </div>
     <div id="dataList"></div>
     <div class="input-container">
@@ -304,7 +304,7 @@
         <div class="button-group">
             <button id="addButton">导出TXT</button>
             <button id="copyButton">复制数据表</button>
-            <button id="importButton">批量导入</button>
+            <button id="importButton">批量修改</button>
             <button id="deleteAllButton">删除全部</button>
         </div>
     </div>
@@ -312,14 +312,15 @@
         <div class="guide-content">【快速操作指南】
 ▋数据录入规范
 1️⃣ 新增数据行
-
 输入内容后按「回车」立即生成新记录
-支持智能联想：输入关键词（如"办公"）自动匹配历史记录
+支持智能联想：输入关键词自动匹配历史记录
+
 ▋资产盘点流程
 📍 第一步：创建存放档案
 格式要求：@地点 负责人 部门
 范例：@育英楼106 汪正正 教务处
 ▶️ 提示：此信息将作为直到下一个存放档案出现前的资产归属标识
+⚠️ 注意：同一地点不可重复创建
 
 📍 第二步：录入资产详情
 必填字段（空格分隔）：
@@ -330,16 +331,20 @@
 ▶️ 提示：资产详情请按照顺序填写
 
 ▋编辑与维护
-✅ 即时修正：点击数据行「修改」按钮进行内容修改
-✅ 快速删除：点击数据行「删除」按钮可删除行
-✅ 批量调整：点击「删除全部」按钮可以将数据行全部删除
+✅ 单项修改：点击数据行「编辑」按钮修改单条记录
+✅ 批量修改：点击「批量修改」按钮可同时编辑所有数据
+✅ 快速删除：点击数据行「删除」按钮可删除单条记录
+✅ 清空数据：点击「删除全部」按钮可清空所有数据
 
 ▋数据管理
-🔗 导入历史数据：粘贴换行分隔的文本文件
-🔗 复制当前清单：点击「复制数据表」按钮
-🔗 导出存档：生成.txt文件备份（建议每次盘点后保存）
+🔗 导出存档：点击「导出TXT」按钮生成文件备份
+🔗 复制数据：点击「复制数据表」按钮复制所有数据到剪贴板
+🔗 批量修改：点击「批量修改」按钮可查看和编辑所有数据
 
-💡 重要提示：连续盘点时请养成定时导出习惯，避免数据丢失风险</div>
+💡 操作建议：
+1. 定期导出数据文件备份，避免数据丢失
+2. 批量修改时注意检查地点是否重复
+3. 建议按照规范格式录入，保持数据统一性</div>
         <button id="closeGuideButton">我知道了</button>
     </div>
 
@@ -574,10 +579,35 @@
             }, 2000);
         }
 
+        // 修改检查@开头行是否重复的函数
+        function checkDuplicateLocation(newItem) {
+            if (!newItem.startsWith('@')) {
+                return false;
+            }
+            
+            // 获取新输入的地点名称（@后到第一个空格之前的内容）
+            const newLocation = newItem.substring(1, newItem.indexOf(' ') > 0 ? newItem.indexOf(' ') : newItem.length);
+            
+            // 检查现有项目中是否存在相同地点名称
+            return items.some(item => {
+                if (item.startsWith('@')) {
+                    const existingLocation = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
+                    return existingLocation === newLocation;
+                }
+                return false;
+            });
+        }
+
         // 修改添加项目的函数
         function addNewItem() {
             const newItem = itemInput.value.trim();
             if (newItem) {
+                // 检查是否是重复的@开头行
+                if (checkDuplicateLocation(newItem)) {
+                    showToast('该地点已存在，请勿重复添加！');
+                    return;
+                }
+                
                 saveItem(newItem);
                 itemInput.value = '';
                 suggestions.style.display = 'none';
@@ -643,45 +673,64 @@
             overlay.style.display = 'none';
         });
 
-        // 批量保存数据到IndexedDB
+        // 修改批量保存数据到IndexedDB的函数
         const bulkSaveItems = (values) => {
             const transaction = db.transaction(['items'], 'readwrite');
             const store = transaction.objectStore('items');
             
-            values.forEach(value => {
-                if (value.trim()) {
-                    store.add({ value: value.trim() });
-                }
-            });
+            // 先清除所有现有数据
+            store.clear().onsuccess = () => {
+                // 然后添加新的数据
+                values.forEach(value => {
+                    if (value.trim()) {
+                        store.add({ value: value.trim() });
+                    }
+                });
+            };
             
             transaction.oncomplete = () => {
                 loadItems();
+                showToast('批量修改成功！');
             };
         };
 
-        // 导入按钮点击事件
+        // 修改导入按钮点击事件为批量修改
         importButton.addEventListener('click', () => {
             importModal.style.display = 'block';
             overlay.style.display = 'block';
-            importInput.value = '';
+            // 显示当前所有数据
+            importInput.value = items.join('\n');
         });
 
-        // 确认导入按钮点击事件
+        // 修改确认导入按钮点击事件为保存修改
         saveImportButton.addEventListener('click', () => {
-            const importText = importInput.value;
-            const importItems = importText.split('\n');
+            const newContent = importInput.value;
+            const newItems = newContent.split('\n');
             
-            bulkSaveItems(importItems);
+            // 检查是否有重复的地点
+            const locations = new Set();
+            let hasDuplicate = false;
             
-            importModal.style.display = 'none';
-            overlay.style.display = 'none';
-            importInput.value = '';
-
-            // 等待数据加载完成后滚动到底部并显示提示
-            setTimeout(() => {
-                scrollToBottom();
-                showToast('批量导入成功！');
-            }, 100);
+            newItems.forEach(item => {
+                if (item.startsWith('@')) {
+                    const location = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
+                    if (locations.has(location)) {
+                        hasDuplicate = true;
+                    }
+                    locations.add(location);
+                }
+            });
+            
+            if (hasDuplicate) {
+                showToast('存在重复的地点，请检查后重试！');
+                return;
+            }
+            
+            if (confirm('确定要保存修改吗？此操作将覆盖现有数据！')) {
+                bulkSaveItems(newItems);
+                importModal.style.display = 'none';
+                overlay.style.display = 'none';
+            }
         });
 
         // 修改 overlay 点击事件，添加关闭导入模态框
