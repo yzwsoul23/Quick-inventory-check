@@ -187,6 +187,16 @@
         #editModal button:hover {
             background-color: #0056b3;
         }
+        #editModal textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            resize: vertical;
+        }
 
         #overlay {
             display: none;
@@ -306,7 +316,7 @@
 <body>
     <div id="overlay"></div>
     <div id="editModal">
-        <input type="text" id="editInput" placeholder="输入修改后的内容">
+        <textarea id="editInput" placeholder="输入修改后的内容"></textarea>
         <button id="saveEditButton">保存修改</button>
     </div>
     <div id="importModal">
@@ -664,16 +674,16 @@
         // 修改复制按钮的点击事件
         copyButton.textContent = '批量修改'; // 修改按钮文本
         copyButton.addEventListener('click', () => {
-            importModal.style.display = 'block';
+            editModal.style.display = 'block';
             overlay.style.display = 'block';
             // 将当前数据填充到文本框中
-            importInput.value = items.join('\n');
+            editInput.value = items.join('\n');
         });
-
+        
         // 修改保存按钮的点击事件
-        saveImportButton.addEventListener('click', () => {
-            const importText = importInput.value;
-            const importItems = importText.split('\n').filter(item => item.trim());
+        saveEditButton.addEventListener('click', () => {
+            const editText = editInput.value;
+            const editItems = editText.split('\n').filter(item => item.trim());
             
             // 清空现有数据并添加新数据
             const transaction = db.transaction(['items'], 'readwrite');
@@ -684,7 +694,7 @@
                 // 添加新数据
                 let duplicateCount = 0;
                 
-                importItems.forEach(value => {
+                editItems.forEach(value => {
                     if (value.trim()) {
                         // 检查是否是重复的@开头行
                         if (checkDuplicateLocation(value.trim())) {
@@ -705,21 +715,11 @@
                 };
             };
             
-            importModal.style.display = 'none';
+            editModal.style.display = 'none';
             overlay.style.display = 'none';
-            importInput.value = '';
+            editInput.value = '';
         });
-
-        // 修改保存编辑的事件处理
-        saveEditButton.addEventListener('click', () => {
-            const newItem = editInput.value.trim();
-            if (newItem) {
-                updateItem(currentEditIndex, newItem);
-                editInput.value = '';
-                editModal.style.display = 'none';
-                overlay.style.display = 'none';
-            }
-        });
+        
 
         // 关闭编辑模态框
         overlay.addEventListener('click', () => {
@@ -754,6 +754,7 @@
                 }
             };
         };
+
 
         // 导入按钮点击事件
         importButton.addEventListener('click', () => {
@@ -833,11 +834,6 @@
             }
         });
 
-        editInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                saveEditButton.click();
-            }
-        });
     </script>
 </body>
 </html>
