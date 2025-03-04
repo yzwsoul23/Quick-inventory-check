@@ -303,7 +303,7 @@
         <div id="suggestions"></div>
         <div class="button-group">
             <button id="addButton">导出TXT</button>
-            <button id="copyButton">复制数据表</button>
+            <button id="copyButton">批量导入</button>
             <button id="importButton">批量修改</button>
             <button id="deleteAllButton">删除全部</button>
         </div>
@@ -338,12 +338,12 @@
 
 ▋数据管理
 🔗 导出存档：点击「导出TXT」按钮生成文件备份
-🔗 复制数据：点击「复制数据表」按钮复制所有数据到剪贴板
+🔗 批量导入：点击「批量导入」按钮可批量添加新数据
 🔗 批量修改：点击「批量修改」按钮可查看和编辑所有数据
 
 💡 操作建议：
 1. 定期导出数据文件备份，避免数据丢失
-2. 批量修改时注意检查地点是否重复
+2. 批量导入和修改时注意检查地点是否重复
 3. 建议按照规范格式录入，保持数据统一性</div>
         <button id="closeGuideButton">我知道了</button>
     </div>
@@ -648,29 +648,63 @@
         // 修改添加按钮为导出TXT功能
         addButton.addEventListener('click', exportToTxt);
 
-        // 复制数据表
+        // 修改按钮文本
+        copyButton.textContent = '批量导入';
+
+        // 修改按钮点击事件
         copyButton.addEventListener('click', () => {
-            const csvContent = items.join("\n");
-            navigator.clipboard.writeText(csvContent).then(() => {
-                alert('数据表已复制到剪贴板');
+            importModal.style.display = 'block';
+            overlay.style.display = 'block';
+            importInput.value = ''; // 清空输入框，准备导入新数据
+        });
+
+        // 修改保存导入按钮的处理逻辑
+        saveImportButton.addEventListener('click', () => {
+            const newContent = importInput.value;
+            const newItems = newContent.split('\n');
+            
+            // 检查新数据中是否有重复的地点
+            const existingLocations = new Set();
+            items.forEach(item => {
+                if (item.startsWith('@')) {
+                    const location = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
+                    existingLocations.add(location);
+                }
             });
-        });
-
-        // 修改保存编辑的事件处理
-        saveEditButton.addEventListener('click', () => {
-            const newItem = editInput.value.trim();
-            if (newItem) {
-                updateItem(currentEditIndex, newItem);
-                editInput.value = '';
-                editModal.style.display = 'none';
-                overlay.style.display = 'none';
+            
+            let hasDuplicate = false;
+            newItems.forEach(item => {
+                if (item.startsWith('@')) {
+                    const location = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
+                    if (existingLocations.has(location)) {
+                        hasDuplicate = true;
+                    }
+                }
+            });
+            
+            if (hasDuplicate) {
+                showToast('存在重复的地点，请检查后重试！');
+                return;
             }
-        });
-
-        // 关闭编辑模态框
-        overlay.addEventListener('click', () => {
-            editModal.style.display = 'none';
-            overlay.style.display = 'none';
+            
+            if (confirm('确定要导入这些数据吗？')) {
+                const transaction = db.transaction(['items'], 'readwrite');
+                const store = transaction.objectStore('items');
+                
+                // 添加新的数据到现有数据后面
+                newItems.forEach(value => {
+                    if (value.trim()) {
+                        store.add({ value: value.trim() });
+                    }
+                });
+                
+                transaction.oncomplete = () => {
+                    loadItems();
+                    importModal.style.display = 'none';
+                    overlay.style.display = 'none';
+                    showToast('批量导入成功！');
+                };
+            }
         });
 
         // 修改批量保存数据到IndexedDB的函数
@@ -700,37 +734,6 @@
             overlay.style.display = 'block';
             // 显示当前所有数据
             importInput.value = items.join('\n');
-        });
-
-        // 修改确认导入按钮点击事件为保存修改
-        saveImportButton.addEventListener('click', () => {
-            const newContent = importInput.value;
-            const newItems = newContent.split('\n');
-            
-            // 检查是否有重复的地点
-            const locations = new Set();
-            let hasDuplicate = false;
-            
-            newItems.forEach(item => {
-                if (item.startsWith('@')) {
-                    const location = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
-                    if (locations.has(location)) {
-                        hasDuplicate = true;
-                    }
-                    locations.add(location);
-                }
-            });
-            
-            if (hasDuplicate) {
-                showToast('存在重复的地点，请检查后重试！');
-                return;
-            }
-            
-            if (confirm('确定要保存修改吗？此操作将覆盖现有数据！')) {
-                bulkSaveItems(newItems);
-                importModal.style.display = 'none';
-                overlay.style.display = 'none';
-            }
         });
 
         // 修改 overlay 点击事件，添加关闭导入模态框
@@ -769,6 +772,47 @@
             guideModal.style.display = 'none';
             overlay.style.display = 'none';
         });
+
+        // 更新指南内容
+        const guideContent = `【快速操作指南】
+▋数据录入规范
+1️⃣ 新增数据行
+输入内容后按「回车」立即生成新记录
+支持智能联想：输入关键词自动匹配历史记录
+
+▋资产盘点流程
+📍 第一步：创建存放档案
+格式要求：@地点 负责人 部门
+范例：@育英楼106 汪正正 教务处
+▶️ 提示：此信息将作为直到下一个存放档案出现前的资产归属标识
+⚠️ 注意：同一地点不可重复创建
+
+📍 第二步：录入资产详情
+必填字段（空格分隔）：
+名称 品牌 规格型号
+选填字段（按需填写）：
+[出厂日期/新旧程度] [数量] [使用状态]
+范例：办公椅 黑色皮铁混质 有扶手 3
+▶️ 提示：资产详情请按照顺序填写
+
+▋编辑与维护
+✅ 单项修改：点击数据行「编辑」按钮修改单条记录
+✅ 批量修改：点击「批量修改」按钮可同时编辑所有数据
+✅ 快速删除：点击数据行「删除」按钮可删除单条记录
+✅ 清空数据：点击「删除全部」按钮可清空所有数据
+
+▋数据管理
+🔗 导出存档：点击「导出TXT」按钮生成文件备份
+🔗 批量导入：点击「批量导入」按钮可批量添加新数据
+🔗 批量修改：点击「批量修改」按钮可查看和编辑所有数据
+
+💡 操作建议：
+1. 定期导出数据文件备份，避免数据丢失
+2. 批量导入和修改时注意检查地点是否重复
+3. 建议按照规范格式录入，保持数据统一性`;
+
+        // 更新指南内容到DOM
+        document.querySelector('#guideModal .guide-content').textContent = guideContent;
 
         // 初始化数据库并加载数据
         initDB();
