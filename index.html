@@ -187,16 +187,6 @@
         #editModal button:hover {
             background-color: #0056b3;
         }
-        #editModal textarea {
-            width: 100%;
-            height: 200px;
-            padding: 12px;
-            font-size: 16px;
-            border: 2px solid #007bff;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            resize: vertical;
-        }
 
         #overlay {
             display: none;
@@ -207,6 +197,43 @@
             height: 100%;
             background-color: rgba(0,0,0,0.5);
             z-index: 999;
+        }
+        #editAllModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #editAllModal textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            resize: vertical;
+        }
+
+        #editAllModal button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
         }
 
         #importModal {
@@ -316,13 +343,18 @@
 <body>
     <div id="overlay"></div>
     <div id="editModal">
-        <textarea id="editInput" placeholder="输入修改后的内容"></textarea>
+        <input type="text" id="editInput" placeholder="输入修改后的内容">
         <button id="saveEditButton">保存修改</button>
     </div>
     <div id="importModal">
         <textarea id="importInput" placeholder="请输入要导入的数据，每行一条"></textarea>
         <button id="saveImportButton">确认保存</button>
     </div>
+    <div id="editAllModal">
+        <textarea id="editAllInput" placeholder="请修改数据，每行一条"></textarea>
+        <button id="saveEditAllButton">确认修改</button>
+    </div>
+
     <div id="dataList"></div>
     <div class="input-container">
         <input type="text" id="itemInput" placeholder="输入内容并选择建议项...">
@@ -383,6 +415,7 @@
         const editInput = document.getElementById('editInput');
         const saveEditButton = document.getElementById('saveEditButton');
         const overlay = document.getElementById('overlay');
+        const editAllModal = document.getElementById('editAllModal');
         const importModal = document.getElementById('importModal');
         const importInput = document.getElementById('importInput');
         const importButton = document.getElementById('importButton');
@@ -674,16 +707,17 @@
         // 修改复制按钮的点击事件
         copyButton.textContent = '批量修改'; // 修改按钮文本
         copyButton.addEventListener('click', () => {
-            editModal.style.display = 'block';
+            editAllModal.style.display = 'block';
             overlay.style.display = 'block';
             // 将当前数据填充到文本框中
-            editInput.value = items.join('\n');
+            editAllInput.value = items.join('\n');
         });
-        
+
+
         // 修改保存按钮的点击事件
-        saveEditButton.addEventListener('click', () => {
-            const editText = editInput.value;
-            const editItems = editText.split('\n').filter(item => item.trim());
+        saveEditAllButton.addEventListener('click', () => {
+            const editAllText = editAllInput.value;
+            const editAllItems = editAllText.split('\n').filter(item => item.trim());
             
             // 清空现有数据并添加新数据
             const transaction = db.transaction(['items'], 'readwrite');
@@ -694,7 +728,7 @@
                 // 添加新数据
                 let duplicateCount = 0;
                 
-                editItems.forEach(value => {
+                editAllItems.forEach(value => {
                     if (value.trim()) {
                         // 检查是否是重复的@开头行
                         if (checkDuplicateLocation(value.trim())) {
@@ -715,11 +749,21 @@
                 };
             };
             
-            editModal.style.display = 'none';
+            editAllModal.style.display = 'none';
             overlay.style.display = 'none';
-            editInput.value = '';
+            editAllInput.value = '';
         });
-        
+
+        // 修改保存编辑的事件处理
+        saveEditButton.addEventListener('click', () => {
+            const newItem = editInput.value.trim();
+            if (newItem) {
+                updateItem(currentEditIndex, newItem);
+                editInput.value = '';
+                editModal.style.display = 'none';
+                overlay.style.display = 'none';
+            }
+        });
 
         // 关闭编辑模态框
         overlay.addEventListener('click', () => {
@@ -754,7 +798,6 @@
                 }
             };
         };
-
 
         // 导入按钮点击事件
         importButton.addEventListener('click', () => {
@@ -834,6 +877,11 @@
             }
         });
 
+        editInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                saveEditButton.click();
+            }
+        });
     </script>
 </body>
 </html>
