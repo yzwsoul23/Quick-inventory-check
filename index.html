@@ -718,6 +718,30 @@
         // 修改添加按钮为导出TXT功能
         addButton.addEventListener('click', exportToTxt);
 
+        // 添加一个显示错误提示的函数
+        function showErrorToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(220, 53, 69, 0.9); // 使用红色背景
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                z-index: 1000;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s';
+                setTimeout(() => document.body.removeChild(toast), 500);
+            }, 3000);
+        }
+
         // 修改批量修改函数
         const bulkUpdateItems = (values) => {
             const transaction = db.transaction(['items'], 'readwrite');
@@ -742,15 +766,14 @@
                 }
             }
             
-            // 如果有重复地点，显示错误信息并中止修改
+            // 如果有重复地点，显示错误信息但不关闭模态框
             if (duplicateLocations.length > 0) {
-                showToast(`修改失败：发现重复地点 "${duplicateLocations.join('", "')}"，请检查后重试`);
-                return;
+                showErrorToast(`发现重复地点: "${duplicateLocations.join('", "')}"，请修正后重试`);
+                return false; // 返回false表示有错误
             }
             
             // 没有重复地点，执行修改
             store.clear().onsuccess = () => {
-                // 按原始顺序添加所有数据
                 let addedCount = 0;
                 const addItems = values.map(value => {
                     return new Promise((resolve) => {
@@ -770,7 +793,6 @@
                     });
                 });
                 
-                // 等待所有数据处理完成
                 Promise.all(addItems).then(() => {
                     transaction.oncomplete = () => {
                         loadItems();
@@ -778,6 +800,7 @@
                     };
                 });
             };
+            return true; // 返回true表示成功
         };
 
         // 修改复制按钮文本和点击事件
@@ -795,15 +818,15 @@
             const editAllItems = editAllText.split('\n').filter(item => item.trim());
             
             if (editAllItems.length === 0) {
-                showToast('请输入要修改的数据！');
+                showErrorToast('请输入要修改的数据！');
                 return;
             }
             
-            bulkUpdateItems(editAllItems);
-            
-            editAllModal.style.display = 'none';
-            overlay.style.display = 'none';
-            editAllInput.value = '';
+            if (bulkUpdateItems(editAllItems)) {
+                editAllModal.style.display = 'none';
+                overlay.style.display = 'none';
+                editAllInput.value = '';
+            }
         });
 
         // 修改保存编辑的事件处理
@@ -825,81 +848,84 @@
 
         // 修改批量导入函数
         const bulkSaveItems = (values) => {
-            const transaction = db.transaction(['items'], 'readwrite');
-            const store = transaction.objectStore('items');
-            
-            // 先获取所有现有数据来检查地点是否重复
-            const getAllRequest = store.getAll();
-            
-            getAllRequest.onsuccess = () => {
-                const existingItems = getAllRequest.result.map(item => item.value);
-                const existingLocations = new Set();
-                const newLocations = new Set();
-                let duplicateLocations = [];
+            return new Promise((resolve) => {  // 返回Promise以处理异步操作
+                const transaction = db.transaction(['items'], 'readwrite');
+                const store = transaction.objectStore('items');
                 
-                // 收集现有的地点
-                existingItems.forEach(item => {
-                    if (item.startsWith('@')) {
-                        const location = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
-                        existingLocations.add(location);
-                    }
-                });
+                // 先获取所有现有数据来检查地点是否重复
+                const getAllRequest = store.getAll();
                 
-                // 检查新数据中的地点是否有重复
-                for (const value of values) {
-                    if (value.trim().startsWith('@')) {
-                        const location = value.trim().substring(1, value.trim().indexOf(' ') > 0 ? value.trim().indexOf(' ') : value.trim().length);
-                        
-                        // 检查是否与现有地点重复
-                        if (existingLocations.has(location)) {
-                            duplicateLocations.push(location);
-                            continue;
-                        }
-                        
-                        // 检查新数据内部是否有重复
-                        if (newLocations.has(location)) {
-                            duplicateLocations.push(location);
-                            continue;
-                        }
-                        
-                        newLocations.add(location);
-                    }
-                }
-                
-                // 如果有重复地点，显示错误信息并中止导入
-                if (duplicateLocations.length > 0) {
-                    showToast(`导入失败：发现重复地点 "${duplicateLocations.join('", "')}"，请检查后重试`);
-                    return;
-                }
-                
-                // 没有重复地点，执行导入
-                let addedCount = 0;
-                const addItems = values.map(value => {
-                    return new Promise((resolve) => {
-                        if (value.trim()) {
-                            const request = store.add({ value: value.trim() });
-                            request.onsuccess = () => {
-                                addedCount++;
-                                resolve();
-                            };
-                            request.onerror = () => {
-                                console.error('添加数据失败:', value);
-                                resolve();
-                            };
-                        } else {
-                            resolve();
+                getAllRequest.onsuccess = () => {
+                    const existingItems = getAllRequest.result.map(item => item.value);
+                    const existingLocations = new Set();
+                    const newLocations = new Set();
+                    const duplicateLocations = [];
+                    
+                    // 收集现有的地点
+                    existingItems.forEach(item => {
+                        if (item.startsWith('@')) {
+                            const location = item.substring(1, item.indexOf(' ') > 0 ? item.indexOf(' ') : item.length);
+                            existingLocations.add(location);
                         }
                     });
-                });
-                
-                // 等待所有数据处理完成
-                Promise.all(addItems).then(() => {
-                    transaction.oncomplete = () => {
-                        loadItems();
-                        showToast(`批量导入成功，共添加${addedCount}条数据！`);
-                    };
-                });
-            };
+                    
+                    // 检查新数据中的地点是否有重复
+                    for (const value of values) {
+                        if (value.trim().startsWith('@')) {
+                            const location = value.trim().substring(1, value.trim().indexOf(' ') > 0 ? value.trim().indexOf(' ') : value.trim().length);
+                            
+                            // 检查是否与现有地点重复
+                            if (existingLocations.has(location)) {
+                                duplicateLocations.push(`${location}(已存在)`);
+                                continue;
+                            }
+                            
+                            // 检查新数据内部是否有重复
+                            if (newLocations.has(location)) {
+                                duplicateLocations.push(`${location}(重复)`);
+                                continue;
+                            }
+                            
+                            newLocations.add(location);
+                        }
+                    }
+                    
+                    // 如果有重复地点，显示错误信息但不关闭模态框
+                    if (duplicateLocations.length > 0) {
+                        showErrorToast(`发现重复地点: "${duplicateLocations.join('", "')}"，请修正后重试`);
+                        resolve(false);
+                        return;
+                    }
+                    
+                    // 没有重复地点，执行导入
+                    let addedCount = 0;
+                    const addItems = values.map(value => {
+                        return new Promise((resolve) => {
+                            if (value.trim()) {
+                                const request = store.add({ value: value.trim() });
+                                request.onsuccess = () => {
+                                    addedCount++;
+                                    resolve();
+                                };
+                                request.onerror = () => {
+                                    console.error('添加数据失败:', value);
+                                    resolve();
+                                };
+                            } else {
+                                resolve();
+                            }
+                        });
+                    });
+                    
+                    Promise.all(addItems).then(() => {
+                        transaction.oncomplete = () => {
+                            loadItems();
+                            showToast(`批量导入成功，共添加${addedCount}条数据！`);
+                            resolve(true);  // 操作成功完成
+                        };
+                    });
+                };
+            });
         };
 
         // 修改导入按钮点击事件
@@ -910,20 +936,21 @@
         });
 
         // 修改确认导入按钮点击事件
-        saveImportButton.addEventListener('click', () => {
+        saveImportButton.addEventListener('click', async () => {  // 添加async
             const importText = importInput.value;
             const importItems = importText.split('\n').filter(item => item.trim());
             
             if (importItems.length === 0) {
-                showToast('请输入要导入的数据！');
+                showErrorToast('请输入要导入的数据！');
                 return;
             }
             
-            bulkSaveItems(importItems);
-            
-            importModal.style.display = 'none';
-            overlay.style.display = 'none';
-            importInput.value = '';
+            const success = await bulkSaveItems(importItems);  // 等待操作完成
+            if (success) {
+                importModal.style.display = 'none';
+                overlay.style.display = 'none';
+                importInput.value = '';
+            }
         });
 
         // 修改 overlay 点击事件，添加关闭所有模态框的逻辑
