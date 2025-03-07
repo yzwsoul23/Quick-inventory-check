@@ -44,6 +44,20 @@
             gap: 8px;
         }
 
+        .list-item:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .list-item:nth-child(odd) {
+            background-color: white;
+        }
+
+        .list-item.location-item {
+            background-color: #fff3cd;
+            color: #dc3545;
+            font-weight: bold;
+        }
+
         .list-item:last-child {
             border-bottom: none;
         }
@@ -205,7 +219,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             width: 90%;
-            max-width: 600px;
+            max-width: 800px;
             padding: 20px;
             background-color: white;
             border-radius: 8px;
@@ -215,7 +229,7 @@
 
         #editAllModal textarea {
             width: 100%;
-            height: 200px;
+            height: 400px;
             padding: 12px;
             font-size: 16px;
             border: 2px solid #007bff;
@@ -243,7 +257,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             width: 90%;
-            max-width: 600px;
+            max-width: 800px;
             padding: 20px;
             background-color: white;
             border-radius: 8px;
@@ -253,7 +267,7 @@
 
         #importModal textarea {
             width: 100%;
-            height: 200px;
+            height: 400px;
             padding: 12px;
             font-size: 16px;
             border: 2px solid #007bff;
@@ -535,7 +549,7 @@
         // 修改refreshList函数中的删除按钮事件监听
         function refreshList() {
             dataList.innerHTML = items.map((item, index) => 
-                `<div class="list-item">
+                `<div class="list-item ${item.startsWith('@') ? 'location-item' : ''}">
                     <div class="item-text">${item}</div>
                     <div class="button-container">
                         <button class="action-btn edit-btn" data-index="${index}">编辑</button>
