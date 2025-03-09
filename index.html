@@ -29,7 +29,7 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            height: calc(100vh - 186px);
+            height: calc(100vh - 200px);
             overflow-y: auto;
         }
 
@@ -149,7 +149,7 @@
             margin-top: 10px;
         }
 
-        #exportButton, #importButton, #batchEditButton, #deleteAllButton {
+        #exportButton, #batchAddButton, #batchEditButton, #deleteAllButton {
             padding: 8px 12px;
             border: none;
             border-radius: 4px;
@@ -292,7 +292,7 @@
             background-color: #007bff;
         }
 
-        #importButton {
+        #batchAddButton {
             background-color: #28a745;
         }
 
@@ -362,7 +362,7 @@
     </div>
     <div id="importModal">
         <textarea id="importInput" placeholder="请输入要导入的数据，每行一条"></textarea>
-        <button id="saveImportButton">确认保存</button>
+        <button id="savebatchAddButton">确认保存</button>
     </div>
     <div id="editAllModal">
         <textarea id="editAllInput" placeholder="请修改数据，每行一条"></textarea>
@@ -375,7 +375,7 @@
         <div id="suggestions"></div>
         <div class="button-group">
             <button id="exportButton">导出TXT</button>
-            <button id="importButton">批量导入</button>
+            <button id="batchAddButton">批量添加</button>
             <button id="batchEditButton">批量修改</button>
             <button id="deleteAllButton">删除全部</button>
         </div>
@@ -405,12 +405,12 @@
         ▋编辑与维护
         ✅ 单行修改：点击数据行「编辑」按钮进行内容修改
         ✅ 批量修改：点击「批量修改」按钮，可同时编辑多条数据
-        ✅ 批量导入：点击「批量导入」按钮，可批量添加新数据
+        ✅ 批量添加：点击「批量添加」按钮，可批量添加新数据
         ✅ 快速删除：点击数据行「删除」按钮可删除该行
         ✅ 全部删除：点击「删除全部」按钮可清空所有数据
         
         ▋数据管理
-        🔗 导入数据：点击「批量导入」，粘贴数据（每行一条）
+        🔗 添加数据：点击「批量添加」，粘贴数据（每行一条）
         🔗 导出数据：点击「导出TXT」生成文件备份
         💡 重要提示：
         1. 地点行（@开头）不允许重复，重复时会显示错误提示
@@ -436,8 +436,8 @@
         const editAllModal = document.getElementById('editAllModal');
         const importModal = document.getElementById('importModal');
         const importInput = document.getElementById('importInput');
-        const importButton = document.getElementById('importButton');
-        const saveImportButton = document.getElementById('saveImportButton');
+        const batchAddButton = document.getElementById('batchAddButton');
+        const savebatchAddButton = document.getElementById('savebatchAddButton');
         const deleteAllButton = document.getElementById('deleteAllButton');
         const guideModal = document.getElementById('guideModal');
         const closeGuideButton = document.getElementById('closeGuideButton');
@@ -864,7 +864,7 @@
             overlay.style.display = 'none';
         });
 
-        // 修改批量导入函数
+        // 修改批量添加函数
         const bulkSaveItems = (values) => {
             return new Promise((resolve) => {  // 返回Promise以处理异步操作
                 const transaction = db.transaction(['items'], 'readwrite');
@@ -938,7 +938,7 @@
                     Promise.all(addItems).then(() => {
                         transaction.oncomplete = () => {
                             loadItems();
-                            showToast(`批量导入成功，共添加${addedCount}条数据！`);
+                            showToast(`批量添加成功，共添加${addedCount}条数据！`);
                             resolve(true);  // 操作成功完成
                         };
                     });
@@ -946,15 +946,15 @@
             });
         };
 
-        // 修改导入按钮点击事件
-        importButton.addEventListener('click', () => {
+        // 批量添加按钮点击事件
+        batchAddButton.addEventListener('click', () => {
             importModal.style.display = 'block';
             overlay.style.display = 'block';
             importInput.value = ''; // 清空输入框
         });
 
-        // 修改确认导入按钮点击事件
-        saveImportButton.addEventListener('click', async () => {  // 添加async
+        // 确认批量添加按钮点击事件
+        savebatchAddButton.addEventListener('click', async () => {  // 添加async
             const importText = importInput.value;
             const importItems = importText.split('\n').filter(item => item.trim());
             
@@ -968,6 +968,9 @@
                 importModal.style.display = 'none';
                 overlay.style.display = 'none';
                 importInput.value = '';
+                setTimeout(() => {
+                        scrollToBottom();
+                    }, 100);
             }
         });
 
